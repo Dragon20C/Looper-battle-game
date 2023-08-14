@@ -1,0 +1,38 @@
+[gd_scene load_steps=8 format=3 uid="uid://ct7l6fiuosmp4"]
+
+[ext_resource type="Script" path="res://EnemyAI/enemy_ai.gd" id="1_lskb4"]
+[ext_resource type="Texture2D" uid="uid://d3ftsl445q6oj" path="res://icon.svg" id="2_7anbj"]
+[ext_resource type="Script" path="res://BehaviourTree Folder/BehaviourTree/MainBehaviours/BasicNodes/RootBT.gd" id="3_2vqk6"]
+[ext_resource type="Script" path="res://BehaviourTree Folder/BehaviourTree/MainBehaviours/BasicNodes/SequenceBT.gd" id="4_5ivm0"]
+[ext_resource type="Script" path="res://BehaviourTree Folder/BehaviourTree/MainBehaviours/BasicNodes/SelectorBT.gd" id="5_3wj2v"]
+[ext_resource type="Script" path="res://BehaviourTree Folder/BehaviourTree/SpecificBehaviour/PatrolAction.gd" id="7_6hlpu"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_387vk"]
+radius = 13.0
+
+[node name="Enemy_AI" type="CharacterBody2D"]
+motion_mode = 1
+script = ExtResource("1_lskb4")
+
+[node name="Icon" type="Sprite2D" parent="."]
+scale = Vector2(0.2, 0.2)
+texture = ExtResource("2_7anbj")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_387vk")
+
+[node name="RootBT" type="Node2D" parent="."]
+script = ExtResource("3_2vqk6")
+
+[node name="SequenceBT" type="Node2D" parent="RootBT"]
+script = ExtResource("4_5ivm0")
+
+[node name="SelectorBT" type="Node2D" parent="RootBT/SequenceBT"]
+script = ExtResource("5_3wj2v")
+
+[node name="PatrolSequence" type="Node2D" parent="RootBT/SequenceBT/SelectorBT"]
+script = ExtResource("4_5ivm0")
+
+[node name="PatrolAction" type="Node2D" parent="RootBT/SequenceBT/SelectorBT/PatrolSequence"]
+script = ExtResource("7_6hlpu")
+Speed = 70

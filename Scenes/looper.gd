@@ -1,0 +1,166 @@
+extends Node2D
+
+var MouseMotion : Vector2 = Vector2.ZERO
+var Looper : Line2D # The line renderer
+var LinePoints : PackedVector2Array = PackedVector2Array()
+@export var LineWidth : int = 10 # Line thickness also used for collision
+var SegmentNode: Node2D # Holds segments that make a loop
+var LoopNode : Node2D # Holds the loop when a detection is made
+@export var MaxPoints : int = 60 # How many points that should only render.
+@export var MinDistance : int = 40 # Segment length.
+
+const FRAMES_TO_CONSIDER = 2
+const MAX_VELOCITY_THRESHOLD = 8.0
+var LastMousePositions = []
+
+func _ready() -> void:
+	Looper = Line2D.new()
+	Looper.name = "Line2D"
+	Looper.set_joint_mode(Line2D.LINE_JOINT_ROUND)
+	Looper.set_begin_cap_mode(Line2D.LINE_CAP_ROUND)
+	Looper.set_end_cap_mode(Line2D.LINE_CAP_ROUND)
+	Looper.texture_mode = Line2D.LINE_TEXTURE_TILE
+	Looper.width = LineWidth
+	Looper.default_color = "558ff6"
+	Looper.z_index = -4
+	add_child(Looper)
+	
+	SegmentNode = Node2D.new()
+	SegmentNode.name = "SegmentNode"
+	add_child(SegmentNode)
+	
+	LoopNode = Node2D.new()
+	LoopNode.name = "LoopNode"
+	add_child(LoopNode)
+
+func _input(event):
+	if event is InputEventMouseMotion:
+		MouseMotion = event.position
+
+func _process(delta: float) -> void:
+	if Input.is_action_pressed("LeftClick"):
+		ProcessLine(MouseMotion)
+	elif Input.is_action_just_released("LeftClick"):
+		ClearPoints(LinePoints.size())
+
+func ProcessLine(MousePosition: Vector2) -> void:
+	if LinePoints.size() == 0: # Checks if the Points array is empty is so fill two.
+		LinePoints.append(MousePosition)
+		LinePoints.append(MousePosition)
+		CreateSegment(MousePosition, MousePosition)
+	elif LinePoints.size() > MaxPoints: # If points array is bigger then max points remove extra
+		ClearPoints(LinePoints.size() - MaxPoints)
+
+	# Check the distance between second to last point and mouse position
+	# Calculate how many segments are needed to be created
+	var distanceToTarget = MousePosition.distance_to(LinePoints[-2])
+	var segmentsToAdd = int(distanceToTarget / MinDistance)
+	
+	# Check if distance is larger then a min
+	if distanceToTarget > MinDistance:
+		# for loop segments - 1 because we dont want the last point yet.
+		for i in range(segmentsToAdd - 1):
+			var direction = (MousePosition - LinePoints[-2]).normalized()
+			var newSegment = direction * MinDistance
+			var CurrentPosition = LinePoints[-1] + newSegment
+			LinePoints.append(CurrentPosition)
+			CreateSegment(LinePoints[-2],CurrentPosition)
+		# Checks mouse displacement is its smaller we add a point
+		CheckMouseDisplacement(MousePosition)
+	else:
+		# Set the very last point to the mouse to make it look like its following it
+		LinePoints[-1] = MousePosition
+		UpdateSegment(LinePoints[-2],MousePosition)
+	# Apply the points array to the line2D points
+	# ProcessLoop checks if the line2D has intersected with its self so create loop
+	Looper.points = LinePoints
+	ProcessLoop()
+
+func CheckMouseDisplacement(MousePosition : Vector2) -> void:
+	var CurrentMousePos = MousePosition
+	LastMousePositions.append(CurrentMousePos)
+	if LastMousePositions.size() > FRAMES_TO_CONSIDER:
+		LastMousePositions.remove_at(0)
+		
+	var TotalDisplacement = Vector2()
+	for pos in LastMousePositions:
+		TotalDisplacement += pos
+	var AverageDisplacement = TotalDisplacement / LastMousePositions.size()
+	
+	if CurrentMousePos.distance_to(AverageDisplacement) < MAX_VELOCITY_THRESHOLD:
+		LinePoints.append(CurrentMousePos)
+		CreateSegment(LinePoints[-2], CurrentMousePos)
+
+	
+func ClearPoints(Index : int):
+	for _clear in range(Index):
+		if LinePoints.size() > 0:
+			LinePoints.remove_at(0)
+
+	var segments = SegmentNode.get_children()
+	for i in range(Index):
+		if segments.size() > 0:
+			SegmentNode.remove_child(segments[0])
+			segments[0].queue_free()
+			segments.remove_at(0)
+
+	Looper.points = LinePoints
+	
+func CreateSegment(start: Vector2, end: Vector2) -> void:
+	var points = rotated_rectangle_points(start, end, LineWidth)
+	var segment = Area2D.new()
+	segment.add_to_group("PlayerSegments")
+	var collision = create_collision_polygon(points)
+	segment.add_child(collision)
+	SegmentNode.add_child(segment)
+	
+func UpdateSegment(start: Vector2, end: Vector2) -> void:
+	var points = rotated_rectangle_points(start, end, LineWidth)
+	var segment = SegmentNode.get_child(SegmentNode.get_child_count() - 1) as Area2D
+	var collision = segment.get_child(0) as CollisionPolygon2D
+	collision.set_polygon(points)
+
+static func rotated_rectangle_points(start: Vector2, end: Vector2, width: float) -> Array:
+	var diff = end - start
+	var normal = diff.rotated(TAU / 4).normalized()
+	var offset = normal * width * 0.5
+	return [start + offset, start - offset, end - offset, end + offset]
+
+static func create_collision_polygon(points: Array) -> CollisionPolygon2D:
+	var result = CollisionPolygon2D.new()
+	result.set_polygon(points)
+	return result
+
+func ProcessLoop() -> void:
+	var segments = SegmentNode.get_children()
+	for index in range(segments.size() - 1, 0, -1):
+		var segment = segments[index]
+		var candidates = segment.get_overlapping_areas()
+		for candidate in candidates:
+			var candidate_index = segments.find(candidate)
+			if candidate_index == -1:
+				continue
+				
+			if abs(candidate_index - index) > 1:
+				
+				CreateLoop(candidate_index,index)
+				ClearPoints(LinePoints.size())
+				return
+
+func CreateLoop(FirstIndex:int, SecondIndex:int) -> void:
+	ClearLoop()
+	var Loop = Area2D.new()
+	var Points = LinePoints.duplicate()
+	Points.resize(SecondIndex)
+	for PointIndex in FirstIndex + 1:
+		Points.remove_at(0)
+
+	var Collision = create_collision_polygon(Points)
+	Collision.add_to_group("PlayerAttack")
+	Loop.add_child(Collision)
+	LoopNode.add_child(Loop)
+
+func ClearLoop() -> void:
+	for Loop in LoopNode.get_children():
+		if is_instance_valid(Loop):
+			Loop.queue_free()

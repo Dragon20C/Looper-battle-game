@@ -1,0 +1,19 @@
+[gd_scene load_steps=2 format=3 uid="uid://b34dcfumgxkpn"]
+
+[ext_resource type="Script" path="res://Scenes/HealthContainer.gd" id="1_30wqs"]
+
+[node name="HealthContainer" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 320.0
+offset_bottom = 14.0
+size_flags_horizontal = 4
+size_flags_vertical = 3
+script = ExtResource("1_30wqs")
+
+[node name="HBox" type="HBoxContainer" parent="."]
+layout_mode = 0
+offset_left = 4.0
+offset_top = 4.0
+offset_right = 320.0
+offset_bottom = 13.0

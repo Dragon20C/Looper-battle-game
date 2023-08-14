@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3 uid="uid://c72p2ku0j33ju"]
+
+[ext_resource type="Texture2D" uid="uid://bgrjopbpsjvws" path="res://Textures/Hearts/EmptyHeart.png" id="1_r6c1q"]
+[ext_resource type="Texture2D" uid="uid://c71u7mg3wbpnc" path="res://Textures/Hearts/Hearts.png" id="2_nxrp7"]
+
+[node name="EmptyHeart" type="TextureRect"]
+texture = ExtResource("1_r6c1q")
+stretch_mode = 2
+
+[node name="FullHeart" type="TextureRect" parent="."]
+layout_mode = 0
+offset_right = 14.0
+offset_bottom = 13.0
+texture = ExtResource("2_nxrp7")
+stretch_mode = 2
